@@ -334,9 +334,9 @@ class CtaEngine(object):
             for strategy in l:
                 if strategy.trading:
                     self.callStrategyFunc(strategy, strategy.onTick, tick)
-                    if tick.datetime.second == 36 and tick.datetime.minute != self.minute_temp:
-                        self.minute_temp = tick.datetime.minute
-                        self.qryAllOrders(strategy.name)
+                    # if tick.datetime.second == 36 and tick.datetime.minute != self.minute_temp:
+                    #     self.minute_temp = tick.datetime.minute
+                    #     self.qryAllOrders(strategy.name)
                     
     #----------------------------------------------------------------------
     def processOrderEvent(self, event):
@@ -1056,8 +1056,15 @@ class CtaEngine(object):
             }
         AccountData = self.mainEngine.dbQuery('vnpy_account_monitor', account.gatewayName,flt)
         if not AccountData:
-            self.writeCtaLog(u'gateway %s: 当前没有保存的账户信息'%account.gatewayName)
-            return
+            self.writeCtaLog(u'gateway %s: 当前没有保存的账户信息，尝试获取前一日的账户'%account.gatewayName)
+            flt = {'name': account.gatewayName,
+            'AccountName':account.accountID,
+            'date': (datetime.today()-timedelta(days=1)).date().strftime('%Y%m%d')
+            }
+            AccountData = self.mainEngine.dbQuery('vnpy_account_monitor', account.gatewayName,flt)
+            if not AccountData:
+                self.writeCtaLog(u'gateway %s: 前一日也没有保存账户信息'%account.gatewayName)
+                return
         
         d = AccountData[0]
         account = VtAccountData()
