@@ -16,7 +16,7 @@ from queue import Queue, Empty
 from threading import Thread
 from time import sleep
 from vnpy.trader.vtEngine import MainEngine
-from vnpy.api.okex import OkexSpotApi, OkexFuturesApi, OKEX_SPOT_HOST, OKEX_FUTURES_HOST
+from vnpy.api.okex import OkexFuturesApi, OKEX_FUTURES_HOST
 
 from vnpy.trader.vtGateway import *
 from vnpy.trader.vtFunction import getJsonPath
@@ -144,13 +144,12 @@ class OkexGateway(VtGateway):
         """Constructor"""
         super(OkexGateway, self).__init__(eventEngine, gatewayName)
         
-        self.spotApi = SpotApi(self)     
         self.futuresApi = FuturesApi(self)
         
         self.leverage = 0
         self.connected = False
         self.fileName = self.gatewayName + '_connect.json'
-        self.filePath = getJsonPath(self.fileName, __file__)     
+        self.filePath = getJsonPath(self.fileName, __file__)
 
     #----------------------------------------------------------------------
     def connect(self):
@@ -183,8 +182,6 @@ class OkexGateway(VtGateway):
         
         # 初始化接口
         self.futuresApi.init(apiKey, secretKey, trace, contracts)
-        # self.spotApi.init(apiKey, secretKey, trace, symbols)
-
 
     #----------------------------------------------------------------------
     def subscribe(self, subscribeReq):
@@ -235,7 +232,6 @@ class OkexGateway(VtGateway):
     def close(self):
         """关闭"""
         self.futuresApi.close()
-        self.spotApi.close()
         
     #----------------------------------------------------------------------
     def initQuery(self):
@@ -311,7 +307,6 @@ class FuturesApi(OkexFuturesApi):
         self.filledList =[]
         self.tradetick = 0
         self.accountdata = None
-        self.prebalanceDict = {}
 
         self.recordOrderId_BefVolume = {}       # 记录的之前处理的量
 
@@ -403,7 +398,7 @@ class FuturesApi(OkexFuturesApi):
         """"""
         # 查询持仓
         self.futuresUserInfo()
-        # self.subscribeFuturesPositions()   # 没用，Websocket初始查询不给持仓信息
+        self.subscribeFuturesPositions()   # 没用，Websocket初始查询不给持仓信息
 
         # 订阅推送
         for symbol in self.contracts:
@@ -413,7 +408,6 @@ class FuturesApi(OkexFuturesApi):
             
             symbol = symbol[:3]+'_usd'
             self.rest_futures_position(symbol,contractType)  # 初始化后使用restful查询持仓信息
-        self.contactOrders()
         self.writeLog(u'期货服务器登录成功')
     #----------------------------------------------------------------------
     def onTicker(self, data):
@@ -660,8 +654,8 @@ class FuturesApi(OkexFuturesApi):
         """订阅行情"""
         self.subsribeFuturesTicker(symbol,contractType)
         # self.subscribeFuturesKline(symbol,"this_week","30min")  # 订阅推送K线数据
-        self.subscribeFuturesDepth(symbol,contractType)
-        self.subscribeFuturesTrades(symbol,contractType)
+        # self.subscribeFuturesDepth(symbol,contractType)
+        # self.subscribeFuturesTrades(symbol,contractType)
         # self.subscribeFuturesUserInfo()
     #------------------------------------------------------
     #Restful 配置

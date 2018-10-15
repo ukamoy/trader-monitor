@@ -36,7 +36,7 @@ def getSubpackages(name):
 
 
 setup(
-    name='vnpy_fxdayu',
+    name='vnpy_monitor',
     version=vnpy.__version__,
     author=vnpy.__author__,
     author_email='vn.py@foxmail.com',
