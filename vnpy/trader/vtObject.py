@@ -245,6 +245,7 @@ class VtAccountData(VtBaseData):
         self.closeProfit = EMPTY_FLOAT          # 平仓盈亏
         self.positionProfit = EMPTY_FLOAT       # 持仓盈亏
         self.dailyPnL = EMPTY_FLOAT
+        self.liq = EMPTY_FLOAT
 
         # OKEX 数据
         self.risk_rate = EMPTY_FLOAT 
