@@ -15,10 +15,10 @@ import ssl
 import websocket    
 
 # 常量定义
-OKEX_SPOT_HOST = 'wss://real.okex.com:10440/websocket'
-OKEX_FUTURES_HOST = 'wss://real.okex.com:10440/websocket/okexapi'
-# OKEX_SPOT_HOST = 'wss://okexcomreal.bafang.com:10441/websocket'
-# OKEX_FUTURES_HOST = 'wss://okexcomreal.bafang.com:10441/websocket/okexapi'
+# OKEX_SPOT_HOST = 'wss://real.okex.com:10440/websocket'
+# OKEX_FUTURES_HOST = 'wss://real.okex.com:10440/websocket/okexapi'
+OKEX_SPOT_HOST = 'wss://okexcomreal.bafang.com:10441/websocket'
+OKEX_FUTURES_HOST = 'wss://okexcomreal.bafang.com:10441/websocket/okexapi'
 
 SPOT_CURRENCY = ["usdt",
                  "btc",

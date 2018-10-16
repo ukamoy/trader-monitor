@@ -29,7 +29,7 @@ from vnpy.event import Event
 from vnpy.trader.vtEvent import *
 from vnpy.trader.vtConstant import *
 from vnpy.trader.vtObject import VtTickData, VtBarData
-from vnpy.trader.vtGateway import VtSubscribeReq, VtOrderReq, VtCancelOrderReq, VtLogData
+from vnpy.trader.vtGateway import *
 from vnpy.trader.vtFunction import todayDate, getJsonPath
 from vnpy.trader.vtGlobal import globalSetting
 import smtplib
@@ -1077,5 +1077,5 @@ class CtaEngine(object):
         account.closeProfit = d['profit_real']
         account.margin = d['margin']
         self.accountdata = account
-        self.gateway.onAccount(account)  
+        self.mainEngine.onAccount(account)  
         self.writeCtaLog(u'从数据库加载期货账户信息成功')

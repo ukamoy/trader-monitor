@@ -124,7 +124,7 @@ class OkexGateway(VtGateway):
             return            
         
         # 初始化接口
-        self.futuresApi.init(apiKey, secretKey, trace, contracts,initialBalance)
+        self.futuresApi.init(apiKey, secretKey, trace, contracts,liquidation)
 
     #----------------------------------------------------------------------
     def subscribe(self, subscribeReq):
@@ -247,6 +247,7 @@ class FuturesApi(OkexFuturesApi):
         self.strategyDict = {}
 
         self.contractidDict = {}        # 用于持仓信息中, 对应rest查询的合约和ws查询的合约，获取品种信息
+        self.prebalanceDict = {}
         self.filledList =[]
         self.tradetick = 0
         self.accountdata = None
@@ -324,14 +325,14 @@ class FuturesApi(OkexFuturesApi):
             # channel和callback映射
             self.cbDict["ok_sub_futureusd_%s_ticker_%s" % (symbol,contractType)] = self.onTicker
             # self.cbDict["ok_sub_futureusd_%s_depth_%s_10" % (symbol,contractType)] = self.onDepth
-            # # self.cbDict["ok_sub_futureusd_%s_order" % symbol] = self.onSubFuturesOrder
+            # self.cbDict["ok_sub_futureusd_%s_order" % symbol] = self.onSubFuturesOrder
             # self.cbDict["ok_sub_futureusd_%s_trade_%s" %(symbol, contractType)] = self.onSubFuturesTrades
             
         self.cbDict["ok_sub_futureusd_userinfo"] = self.onSubFuturesBalance
         self.cbDict['ok_futureusd_userinfo'] = self.onFuturesUserInfo
         self.cbDict['ok_futureusd_orderinfo'] = self.onFuturesOrderInfo
         # self.cbDict['ok_futureusd_trade'] = self.onSubFuturesOrderError 
-        # self.cbDict['ok_sub_futureusd_trades'] = self.onFuturesOrderInfo
+        self.cbDict['ok_sub_futureusd_trades'] = self.onFuturesOrderInfo
         # self.cbDict['ok_futureusd_order'] = self.onFuturesOrder
         # self.cbDict['ok_futureusd_cancel_order'] = self.onFuturesCancelOrder
         self.cbDict['ok_sub_futureusd_positions'] = self.onSubFuturesPosition
@@ -342,7 +343,7 @@ class FuturesApi(OkexFuturesApi):
         """"""
         # 查询持仓
         self.futuresUserInfo()
-        self.subscribeFuturesPositions()   # 没用，Websocket初始查询不给持仓信息
+        # self.subscribeFuturesPositions()   # 没用，Websocket初始查询不给持仓信息
 
         # 订阅推送
         for symbol in self.contracts:
@@ -448,26 +449,39 @@ class FuturesApi(OkexFuturesApi):
         name = rawData['contract_name'][:3]
         contract_type = rawData['contract_type']
         symbol = str.lower(name) + '_' + contract_type
+        
+        exid = str(rawData['orderid'])
+        if exid in self.localNoDict.keys():
+            self.localNo = self.localNoDict[exid]
+        else:
+            self.localNo +=1
+            self.localNoDict[exid] = self.localNo
+        
 
         order = VtOrderData()
+        order.orderID = str(self.localNo)
+
+        order.vtOrderID = ':'.join([self.gatewayName,order.orderID])
         order.symbol = symbol
         order.gatewayName = self.gatewayName
         order.vtSymbol = ':'.join([order.symbol, order.gatewayName])
-        order.exchange = EXCHANGE_OKEX
+        # order.exchange = EXCHANGE_OKEX
         order.price = rawData['price']
         order.price_avg = rawData['price_avg']
         order.direction, order.offset = futureOrderTypeMap[str(rawData['type'])]
         order.totalVolume = rawData['amount']    
-        order.user_id = rawData['user_id']
+        # order.user_id = rawData['user_id']
         order.gatewayName = self.gatewayName
-        order.createDate  = datetime.fromtimestamp(float(rawData['create_date'])/1e3)
+        order.createDate  = rawData['create_date_str']
         
         order.deliverTime = datetime.now()
         order.status = statusMap[rawData['status']] 
-        order.fee = rawData['fee']
+        # order.fee = rawData['fee']
         order.tradedVolume = float(rawData['deal_amount'])
         self.gateway.onOrder(copy(order))
-
+        if order.status in [STATUS_ALLTRADED,STATUS_CANCELLED]:
+            del self.localNoDict[exid]
+            
     #----------------------------------------------------------------------
     def onSubFuturesBalance(self, data):
         """
@@ -510,6 +524,32 @@ class FuturesApi(OkexFuturesApi):
         self.accountdata = account
         self.gateway.onAccount(account)  
         # self.writeLog(u'期货账户信息更新成功')
+        # import csv
+        # # import datetime
+        # import os
+        # from time import sleep
+        # #通过CTP接口查询账户资金
+        # path = os.getcwd()
+        
+        # vnTrader_dir = os.path.join(path, 'AccountInfo')# AccountInfo 所在路径
+        # today = datetime.today().strftime("%Y-%m-%d")
+        # if not os.path.isdir(vnTrader_dir):
+        #     os.makedirs(vnTrader_dir)
+
+        # # 文件名称设置为今天名称, 每次只推送一条合约信息
+        # path = vnTrader_dir + '//'+self.gatewayName + today + '.csv'
+        # if not os.path.exists(path): # 如果文件不存在，需要写header
+        #     with open(path, 'w',newline="") as f:
+        #         w = csv.DictWriter(f, account.__dict__)
+        #         w.writeheader()
+        #         w.writerow(account.__dict__)
+
+        # else: # 文件存在，不需要写header
+        #     with open(path,'a',newline="") as f:  #二进制追加形式写入
+        #         w = csv.DictWriter(f, account.__dict__)
+        #         w.writerow(account.__dict__)
+        #         sleep(60)  #每隔一分钟查询一次
+        #         return    #如果文件存在不写入
     
     #--------------------------------------------------------------------
     def onSubFuturesPosition(self,data):
