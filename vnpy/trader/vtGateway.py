@@ -1,12 +1,16 @@
 # encoding: UTF-8
 
 import time
-
+from threading import Timer
 from vnpy.event import *
 
 from vnpy.trader.vtEvent import *
 from vnpy.trader.vtConstant import *
 from vnpy.trader.vtObject import *
+
+import smtplib
+from email.mime.text import MIMEText
+from email.utils import formataddr
 
 
 ########################################################################
@@ -18,6 +22,7 @@ class VtGateway(object):
         """Constructor"""
         self.eventEngine = eventEngine
         self.gatewayName = gatewayName
+        self.temp=0
         
     #----------------------------------------------------------------------
     def onTick(self, tick):
@@ -146,12 +151,34 @@ class VtGateway(object):
     def close(self):
         """关闭"""
         pass
-    
 
-    
-    
-    
+    def sendHeartBeat(self,my_context):
+        self.temp +=1
+        if self.temp ==3:
+            self.mail(my_context,'MONITOR 每小时快照')
+            self.temp=0
+        
+    def sendErrorMsg(self,my_context):
+        self.mail(my_context,'MONITOR 警报')
 
+    def mail(self,my_context,title):
+        mailaccount, mailpass = '', ''
+        mailserver, mailport = '', 465
+        to_receiver = ''
+        ret=True
+        try:
+            my_context = my_context +"<br><br> from monitor <br><br> Have a good day <br>"+ datetime.now().strftime("%Y%m%d %H:%M:%S")
+            msg=MIMEText(my_context,'html','utf-8')
+            msg['From']=formataddr(['VNPY_CryptoCurrency',mailaccount])
+            msg['To']=formataddr(["收件人昵称",to_receiver])
+            msg['Subject'] = title
     
-    
-    
+            server=smtplib.SMTP_SSL(mailserver, mailport)
+            server.login(mailaccount, mailpass)
+            server.sendmail(mailaccount,[to_receiver],msg.as_string())
+            server.quit()
+            print(" Send email successfully ...")
+        except Exception:
+            ret=False
+            print(" Send email failed ...")
+        return ret

@@ -19,6 +19,7 @@ from vnpy.trader.uiQt import QtGui, QtWidgets, QtCore, BASIC_FONT
 
 COLOR_RED = QtGui.QColor('red')
 COLOR_GREEN = QtGui.QColor('green')
+COLOR_YELLOW = QtGui.QColor('yellow')
 
 
 ########################################################################
@@ -177,7 +178,41 @@ class PnlCell(BasicCell):
                 self.setForeground(COLOR_GREEN)
         except ValueError:
             pass
+########################################################################
+class HightlightCell(BasicCell):
+    """显示盈亏的单元格"""
 
+    #----------------------------------------------------------------------
+    def __init__(self, text=None, mainEngine=None):
+        """Constructor"""
+        super(HightlightCell, self).__init__()
+        self.data = None
+        self.color = ''
+        if text:
+            self.setContent(text)
+    
+    #----------------------------------------------------------------------
+    def setContent(self, text):
+        """设置内容"""
+        self.setText(text)
+
+        try:
+            if text.isalpha():
+                if text == '未成交':
+                    self.setForeground(COLOR_YELLOW)
+                elif text == '已撤销':
+                    self.setForeground(COLOR_GREEN)
+
+            else:
+                value = float(text)
+                if value > 0 and self.color != 'yellow':
+                    self.color = 'yellow'
+                    self.setForeground(COLOR_YELLOW)
+                elif value == 0 and self.color != 'green':
+                    self.color = 'green'
+                    self.setForeground(COLOR_GREEN)
+        except ValueError:
+            pass
 
 ########################################################################
 class BasicMonitor(QtWidgets.QTableWidget):
@@ -546,17 +581,18 @@ class OrderMonitor(BasicMonitor):
         self.mainEngine = mainEngine
         
         d = OrderedDict()
-        d['gatewayName'] = {'chinese':vtText.GATEWAY, 'cellType':BasicCell}
-        d['orderID'] = {'chinese':vtText.ORDER_ID, 'cellType':NumCell}
+
         d['symbol'] = {'chinese':vtText.CONTRACT_SYMBOL, 'cellType':BasicCell}
         d['direction'] = {'chinese':vtText.DIRECTION, 'cellType':DirectionCell}
         d['offset'] = {'chinese':vtText.OFFSET, 'cellType':BasicCell}
         d['price'] = {'chinese':vtText.PRICE, 'cellType':NumCell}
         d['totalVolume'] = {'chinese':vtText.ORDER_VOLUME, 'cellType':NumCell}
         d['tradedVolume'] = {'chinese':vtText.TRADED_VOLUME, 'cellType':NumCell}
-        d['orderTime'] = {'chinese':vtText.ORDER_TIME, 'cellType':BasicCell}
-        d['status'] = {'chinese':vtText.ORDER_STATUS, 'cellType':BasicCell}        
+        d['createDate'] = {'chinese':vtText.ORDER_TIME, 'cellType':BasicCell}
+        d['status'] = {'chinese':vtText.ORDER_STATUS, 'cellType':HightlightCell}        
         d['rejectedInfo'] = {'chinese':vtText.ORDER_REJECTED_INFO, 'cellType':BasicCell}
+        d['gatewayName'] = {'chinese':vtText.GATEWAY, 'cellType':BasicCell}
+        d['orderID'] = {'chinese':vtText.ORDER_ID, 'cellType':NumCell}
         # d['fee'] = {'chinese':vtText.ORDER_FEE, 'cellType':NumCell}
         d['deliverTime'] = {'chinese':vtText.DELIVER_TIME, 'cellType':BasicCell}
         # d['byStrategy'] = {'chinese':vtText.ORDER_STRATEGY, 'cellType':BasicCell}
@@ -608,8 +644,8 @@ class PositionMonitor(BasicMonitor):
         d['LongpositionProfit'] = {'chinese':vtText.LONG_POSITION_PROFIT, 'cellType':PnlCell}
         d['Longprice'] = {'chinese':vtText.LONG_PRICE, 'cellType':NumCell}
         d['Longfrozen'] = {'chinese':vtText.LONG_FROZEN, 'cellType':NumCell}
-        d['Longposition'] = {'chinese':vtText.LONG_POSITION, 'cellType':NumCell}
-        d['Shortposition'] = {'chinese':vtText.SHORT_POSITION, 'cellType':NumCell}
+        d['Longposition'] = {'chinese':vtText.LONG_POSITION, 'cellType':HightlightCell}
+        d['Shortposition'] = {'chinese':vtText.SHORT_POSITION, 'cellType':HightlightCell}
         d['Shortfrozen'] = {'chinese':vtText.SHORT_FROZEN, 'cellType':NumCell}
         d['Shortprice'] = {'chinese':vtText.SHORT_PRICE, 'cellType':NumCell}
         d['ShortpositionProfit'] = {'chinese':vtText.SHORT_POSITION_PROFIT, 'cellType':PnlCell}
@@ -639,10 +675,11 @@ class AccountMonitor(BasicMonitor):
         d['gatewayName'] = {'chinese':vtText.GATEWAY, 'cellType':BasicCell}
         d['accountID'] = {'chinese':vtText.ACCOUNT_ID, 'cellType':BasicCell}
         d['balance'] = {'chinese':vtText.BALANCE, 'cellType':NumCell}
+        d['liq'] = {'chinese':vtText.LIQUIDATION, 'cellType':NumCell}
         # d['available'] = {'chinese':vtText.AVAILABLE, 'cellType':NumCell}
         d['preBalance'] = {'chinese':vtText.PRE_BALANCE, 'cellType':NumCell}
         d['dailyPnL'] = {'chinese':vtText.DAILYPNL, 'cellType':PnlCell}
-        d['liq'] = {'chinese':vtText.LIQUIDATION, 'cellType':NumCell}
+        
         d['margin'] = {'chinese':vtText.MARGIN, 'cellType':BasicCell}
         d['risk_rate'] = {'chinese':vtText.RISK_RATE, 'cellType':NumCell}
         d['closeProfit'] = {'chinese':vtText.CLOSE_PROFIT, 'cellType':PnlCell}

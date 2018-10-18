@@ -16,7 +16,7 @@ import websocket
 
 # 常量定义
 # OKEX_SPOT_HOST = 'wss://real.okex.com:10440/websocket'
-# OKEX_FUTURES_HOST = 'wss://real.okex.com:10440/websocket/okexapi'
+# OKEX_FUTURES_HOST = 'wss://real.okex.com:10441/websocket/okexapi'
 OKEX_SPOT_HOST = 'wss://okexcomreal.bafang.com:10441/websocket'
 OKEX_FUTURES_HOST = 'wss://okexcomreal.bafang.com:10441/websocket/okexapi'
 
@@ -314,6 +314,125 @@ class OkexApi(object):
 
 
 ########################################################################
+class OkexSpotApi(OkexApi):    
+    """现货交易接口"""
+
+    #----------------------------------------------------------------------
+    def __init__(self):
+        """Constructor"""
+        super(OkexSpotApi, self).__init__()
+
+    #----------------------------------------------------------------------
+    def subscribeSpotTicker(self, symbol):
+        """订阅现货的Tick"""
+        channel = 'ok_sub_spot_%s_ticker' %symbol
+        
+        self.sendRequest(channel)
+
+    #----------------------------------------------------------------------
+    def subscribeSpotDepth(self, symbol, depth=10):
+        """订阅现货的深度"""
+        channel = 'ok_sub_spot_%s_depth_10' %symbol
+        if depth:
+            channel = channel + '_' + str(depth)
+        self.sendRequest(channel)
+
+    #----------------------------------------------------------------------
+    def subscribeSpotDeals(self, symbol):
+        channel = 'ok_sub_spot_%s_deals' %symbol
+        self.sendRequest(channel)
+
+    #----------------------------------------------------------------------
+    def subscribeSpotKlines(self, symbol, period):
+        channel = 'ok_sub_spot_%s_kline_%s' %(symbol, period)
+        self.sendRequest(channel)
+
+    #----------------------------------------------------------------------
+    def spotOrder(self, symbol, type_, price, amount):
+        """现货委托"""
+        params = {}
+        params['symbol'] = str(symbol)
+        params['type'] = str(type_)
+        params['price'] = str(price)
+        params['amount'] = str(amount)
+        
+        channel = 'ok_spot_order'
+        print("spot order",channel,params)
+        return self.sendRequest(channel, params)
+
+    #----------------------------------------------------------------------
+    def spotCancelOrder(self, symbol, orderid):
+        """现货撤单"""
+        params = {}
+        params['symbol'] = str(symbol)
+        params['order_id'] = str(orderid)
+        
+        channel = 'ok_spot_cancel_order'
+
+        self.sendRequest(channel, params)
+    
+    #----------------------------------------------------------------------
+    def spotUserInfo(self):
+        """查询现货账户"""
+        channel = 'ok_spot_userinfo'
+        self.sendRequest(channel, {})
+
+    #----------------------------------------------------------------------
+    def spotOrderInfo(self, symbol, orderid):
+        """查询现货委托信息"""
+        params = {}
+        params['symbol'] = str(symbol)
+        params['order_id'] = str(orderid)
+        
+        channel = 'ok_spot_orderinfo'
+        
+        self.sendRequest(channel, params)
+    
+    #----------------------------------------------------------------------
+    def subSpotOrder(self, symbol):
+        """订阅委托推送"""
+        channel = 'ok_sub_spot_%s_order' %symbol
+        self.sendRequest(channel)
+    
+    #----------------------------------------------------------------------
+    def subSpotBalance(self, symbol):
+        """订阅资金推送"""
+        channel = 'ok_sub_spot_%s_balance' %symbol
+        self.sendRequest(channel)
+
+    # RESTFUL 
+    def _get_url_func(self, url, params=""):
+        return 'https://www.okex.com/api' + "/" + "v1" + "/" + url + params
+    
+    def _chg_dic_to_str(self, dictionary):
+        keys = list(dictionary.keys())
+        keys.remove("self")
+        keys.sort()
+        strings = []
+        for key in keys:
+            if dictionary[key] != None:
+                if not isinstance(dictionary[key], str):
+                    strings.append(key + "=" + str(dictionary[key]))
+                    continue
+                strings.append(key + "=" + dictionary[key])
+        return ".do?" + "&".join(strings)
+    
+    def spotKline(self, symbol, type, size=None, since=None):
+        params = self._chg_dic_to_str(locals())
+        print(params)
+        url = self._get_url_func("kline", params=params)
+        r = requests.get(url, headers={"contentType": "application/x-www-form-urlencoded"}, timeout=10)
+        text = eval(r.text)
+        df = pd.DataFrame(text, columns=["datetime", "open", "high", "low", "close", "volume"])
+        df["datetime"] = df["datetime"].map(
+            lambda x: datetime.datetime.fromtimestamp(x / 1000).strftime("%Y%m%d %H:%M:%S"))
+        df["datetime"] = df["datetime"].map(
+            lambda x: datetime.datetime.strptime(x,"%Y%m%d %H:%M:%S"))
+        # delta = datetime.timedelta(hours=8)
+        # df.rename(lambda s: datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S") + delta)
+        return df.to_dict()
+
+########################################################################
 class OkexFuturesApi(OkexApi):
     """期货交易接口
     
@@ -351,6 +470,86 @@ class OkexFuturesApi(OkexApi):
         """订阅期货K线""" # 建议使用RESTFUL取历史的数据, WEBSOCKET只返回并推送当前K线
         channel = 'ok_sub_futureusd_%s_kline_%s_%s' %(symbol, contractType, period)
         self.sendRequest(channel)
+
+    #----------------------------------------------------------------------
+    def subscribeFuturesDepth(self, symbol, contractType, depth=10):
+        """订阅期货深度  #当前tick的深度
+        
+        """ 
+        channel = 'ok_sub_futureusd_%s_depth_%s' %(symbol, contractType)
+        if depth:
+            channel = channel + '_' + str(depth)
+        self.sendRequest(channel)
+
+    #----------------------------------------------------------------------
+    def subscribeFuturesTrades(self, symbol, contractType):
+        """订阅期货成交""" # 当前市场上成交的25张期货单子
+        """
+        [{'binary': 0, 'channel': 'ok_sub_futureusd_bch_trade_this_week', 
+        'data': [['1000724634502149', '745.0', '2400.0', '17:37:26', 'bid', '32.2147'], 
+        ['1000725646574593', '744.509', '4.0', '17:37:41', 'ask', '0.0537'], 
+        ['1000725660533760', '744.509', '4.0', '17:37:41', 'ask', '0.0537'], 
+        ['1000726002697222', '744.925', '4.0', '17:37:46', 'ask', '0.0536'], 
+        ['1000727026631683', '745.0', '5952.0', '17:38:02', 'bid', '79.8926'],
+        ...省略其他成交单]}]     
+        """
+        channel = 'ok_sub_futureusd_%s_trade_%s' %(symbol, contractType)
+        self.sendRequest(channel)
+
+    #----------------------------------------------------------------------
+    def subscribeFuturesIndex(self, symbol):
+        """
+        订阅期货指数
+        [{'binary': 0, 'channel': 'ok_sub_futureusd_bch_index', 
+        'data': {'usdCnyRate': '6.423', 'futureIndex': '708.044', 'timestamp': '1530150692589'}}]
+        """ 
+        channel = 'ok_sub_futureusd_%s_index' %symbol
+        self.sendRequest(channel)
+        
+    #----------------------------------------------------------------------
+    # def futuresTrade(self, symbol, contractType, type_, price, amount, matchPrice='0', leverRate='10'):
+    #     """期货委托"""
+    #     """
+    #     1、委托id
+    #         [{'binary': 0, 'channel': 'ok_futureusd_trade', 
+    #         'data': {'result': True, 'order_id': 978694110346240}}]
+    #     2、委托详情
+    #         [{'binary': 0, 'channel': 'ok_sub_futureusd_trades', 
+    #         'data': {'lever_rate': 10.0, 'amount': 1.0, 'orderid': 978694110346240, 'contract_id': 201806290050065, 
+    #         'fee': -6.23e-06, 'contract_name': 'BCH0629', 'unit_amount': 10.0, 'price_avg': 802.254, 'type': 1, 
+    #         'deal_amount': 1.0, 'contract_type': 'this_week', 'user_id': 8182562, 'system_type': 0, 'price': 802.254, 
+    #         'create_date_str': '2018-06-22 20:14:47', 'create_date': 1529669687000, 'status': 2}}]
+        
+    #     # amount(double): 委托数量，deal_amount(double): 成交数量，unit_amount(double):合约面值
+    #     # status(int): 订单状态(0等待成交 1部分成交 2全部成交 -1撤单 4撤单处理中)
+    #     # type(int): 订单类型 1：开多 2：开空 3：平多 4：平空
+    #     # system_type(int):订单类型 0:普通 1:交割 2:强平 4:全平 5:系统反单
+    #     """
+    #     params = {}
+    #     params['symbol'] = str(symbol)
+    #     params['contract_type'] = str(contractType)
+    #     params['price'] = str(price)
+    #     params['amount'] = str(amount)
+    #     params['type'] = type_                # 1:开多 2:开空 3:平多 4:平空
+    #     params['match_price'] = matchPrice    # 是否为市场价： 0:不是 1:是 当取值为1时,price无效
+    #     params['lever_rate'] = leverRate
+        
+    #     channel = 'ok_futureusd_trade'
+    #     print("dingdong",channel, params)
+    #     self.sendRequest(channel, params)
+    #     return True
+
+    #----------------------------------------------------------------------
+    def futuresCancelOrder(self, symbol, orderid, contractType):
+        """期货撤单"""
+        params = {}
+        params['symbol'] = str(symbol)
+        params['order_id'] = str(orderid)
+        params['contract_type'] = str(contractType)
+        
+        channel = 'ok_futureusd_cancel_order'
+
+        self.sendRequest(channel, params)
 
     #----------------------------------------------------------------------
     def futuresUserInfo(self):
@@ -421,19 +620,18 @@ class OkexFuturesApi(OkexApi):
         2、逐仓模式
         forcedprice(string): 强平价格，balance(string): 合约账户余额 ，fixmargin(double): 固定保证金
         lever_rate(double): 杠杆倍数
-
         """
         channel = 'ok_sub_futureusd_positions' 
         self.sendRequest(channel, {})    
     
     # RESTFUL 接口
     def _post_url_func(self, url):
-        # return 'https://okexcomweb.bafang.com/api' + "/" + "v1" + "/" + url + ".do"
-        return 'https://www.okex.com/api' + "/" + "v1" + "/" + url + ".do"
+        return 'https://okexcomweb.bafang.com/api' + "/" + "v1" + "/" + url + ".do"
+        # return 'https://www.okex.com/api' + "/" + "v1" + "/" + url + ".do"
     
     def _get_url_func(self, url, params=""):
-        # return 'https://okexcomweb.bafang.com/api' + "/" + "v1" + "/" + url + params
-        return 'https://www.okex.com/api' + "/" + "v1" + "/" + url + params
+        return 'https://okexcomweb.bafang.com/api' + "/" + "v1" + "/" + url + params
+        # return 'https://www.okex.com/api' + "/" + "v1" + "/" + url + params
     
     def _chg_dic_to_str(self, dictionary):
         keys = list(dictionary.keys())
@@ -458,6 +656,16 @@ class OkexFuturesApi(OkexApi):
         r = requests.post(url, data=params, timeout=30)
         return r.json()
     
+    def future_orders_info(self, symbol, contract_type, order_id):
+        #order_id可以是多个以,隔开
+        api_key = self.apiKey
+        data = {"api_key": api_key, "sign": self.rest_sign(locals()), "symbol": symbol, "contract_type": contract_type,
+                "order_id": order_id}
+        url = self._post_url_func("future_orders_info")
+        # print(url)
+        r = requests.post(url, data=data, timeout=30)
+        return r.json()
+    
     def future_position(self, symbol, contract_type):
         api_key = self.apiKey
         data = {"api_key": api_key, "sign": self.rest_sign(locals()), "symbol": symbol, "contract_type": contract_type}
@@ -465,3 +673,56 @@ class OkexFuturesApi(OkexApi):
         # print(url)
         r = requests.post(url, data=data, timeout=30)
         return r.json()
+    
+    def future_order_info(self, symbol, contract_type, order_id, status=None, current_page=None, page_length=None):
+        api_key = self.apiKey
+        data = {"api_key": api_key, "sign": self.rest_sign(locals()), "symbol": symbol, "contract_type": contract_type,
+                "order_id": order_id}
+        if status:
+            data["status"] = status
+        if current_page:
+            data["current_page"] = current_page
+        if page_length:
+            data["page_length"] = page_length
+        url = self._post_url_func("future_order_info")
+        # print(url)
+        r = requests.post(url, data=data, timeout=30)
+        return r.json()
+
+    def future_trade(self, symbol, contract_type, price, amount, type, match_price=None, lever_rate=None):
+        api_key = self.apiKey
+        data = {"api_key": api_key, "sign": self.rest_sign(locals()), "symbol": symbol, "contract_type": contract_type,
+                "price": price, "amount": amount, "type":type}
+        if match_price != None:
+            data["match_price"] = match_price
+        if lever_rate != None:
+            data["lever_rate"] = lever_rate
+        print(data,"********send order api******")
+        url = self._post_url_func("future_trade")
+        r = requests.post(url, data=data, timeout=30)
+        # print(url)
+        return r.json()
+
+    def future_cancel_order(self, symbol, contract_type, order_id):
+        #order_id可以是多个以,隔开
+        api_key = self.apiKey
+        data = {"api_key": api_key, "sign": self.rest_sign(locals()), "symbol": symbol, "contract_type": contract_type,
+                "order_id": order_id}
+        url = self._post_url_func("future_cancel")
+        # print(url)
+        r = requests.post(url, data=data, timeout=30)
+        return r.json()
+
+    def futureKline(self, symbol, type, contract_type, size=None, since=None):
+        params = self._chg_dic_to_str(locals())
+        print(params)
+        url = self._get_url_func("future_kline", params=params)
+        r = requests.get(url, headers={"contentType": "application/x-www-form-urlencoded"}, timeout=10)
+        # print(r)
+        text = eval(r.text)
+        df = pd.DataFrame(text, columns=["datetime", "open", "high", "low", "close", "volume","%s_volume"%symbol])
+        df["datetime"] = df["datetime"].map(
+            lambda x: datetime.datetime.fromtimestamp(x / 1000))
+        # delta = datetime.timedelta(hours=8)
+        # df.rename(lambda s: datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S") + delta)  # 如果服务器有时区差别
+        return df.to_dict()
