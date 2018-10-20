@@ -257,7 +257,7 @@ class FuturesApi(OkexFuturesApi):
         self.localOrderDict = {}        # key为本地委托号, value为委托对象
         self.orderIdDict = {}           # key为系统委托号，value为本地委托号
         self.cancelDict = {}            # key为本地委托号，value为撤单请求
-        self.dangerdict = {}
+        self.subscribeList = []
         self.arbPair = {}
 
         self.contractidDict = {}        # 用于持仓信息中, 对应rest查询的合约和ws查询的合约，获取品种信息
@@ -272,9 +272,8 @@ class FuturesApi(OkexFuturesApi):
 
         self.cache_some_order = {}
         self.minute_temp = 0
-        self.hour_temp = 0
         self.tradeID = 0
-        self.symbolSizeDict = {}        # 保存合约代码和合约大小的印射关系
+        self.symbolDict = {}        # 保存合约代码和合约大小的印射关系
     #----------------------------------------------------------------------
     def onMessage(self, data):
         """信息推送""" 
@@ -346,9 +345,9 @@ class FuturesApi(OkexFuturesApi):
             
         self.cbDict["ok_sub_futureusd_userinfo"] = self.onSubFuturesBalance
         self.cbDict['ok_futureusd_userinfo'] = self.onFuturesUserInfo
-        self.cbDict['ok_futureusd_orderinfo'] = self.onFuturesOrderInfo
+        #self.cbDict['ok_futureusd_orderinfo'] = self.onFuturesOrderInfo
         # self.cbDict['ok_futureusd_trade'] = self.onSubFuturesOrderError 
-        self.cbDict['ok_sub_futureusd_trades'] = self.onFuturesOrderInfo
+        #self.cbDict['ok_sub_futureusd_trades'] = self.onFuturesOrderInfo
         # self.cbDict['ok_futureusd_order'] = self.onFuturesOrder
         # self.cbDict['ok_futureusd_cancel_order'] = self.onFuturesCancelOrder
         self.cbDict['ok_sub_futureusd_positions'] = self.onSubFuturesPosition
@@ -363,6 +362,7 @@ class FuturesApi(OkexFuturesApi):
 
         # 订阅推送
         for symbol in self.contracts:
+            self.subscribeList.append(symbol)
             contractType = symbol[4:]
             symbol = symbol[:3]
             self.subscribe(symbol,contractType)
@@ -386,17 +386,10 @@ class FuturesApi(OkexFuturesApi):
         self.contractidDict[str(d['contractId'])] =symbol
 
         now = datetime.now()
-        slogan = ['注意站起来活动活动身体','注意站起来活动活动身体','注意站起来活动活动身体','注意站起来活动活动身体','注意站起来活动活动身体','注意站起来活动活动身体','注意站起来活动活动身体']
-        if now.hour!=self.hour_temp:
-            num = random.randint(0,6)
-            content = str(self.dangerdict.items()) + '\n' + str(self.arbPair.items()) +'\n' + slogan[num]
-            self.gateway.sendHeartBeat(content)
-            self.hour_temp = now.hour
 
         if now.minute != self.minute_temp:
             self.minuteCheck()
             self.minute_temp = now.minute
-
 
     #---------------------------------------------------
     def onFuturesUserInfo(self, data):
@@ -474,29 +467,21 @@ class FuturesApi(OkexFuturesApi):
         if flag:
             self.writeLog(u'期货账户信息查询成功, 该账户是全仓模式')
     #----------------------------------------------------------------------
-    def onFuturesOrderInfo(self, data):
-        # print(data)
+    def pushOrder(self, rawData, symbol):
         """委托信息查询回调
         {'lever_rate': 10.0, 'amount': 1.0, 'orderid': 1018500247351296, 'contract_id': 201807060050052, 
         'fee': 0.0, 'contract_name': 'BCH0706', 'unit_amount': 10.0, 'price_avg': 0.0, 'type': 1, 
         'deal_amount': 0.0, 'contract_type': 'this_week', 'user_id': ********, 'system_type': 0, 
         'price': 654.977, 'create_date_str': '2018-06-29 20:58:00', 'create_date': 1530277080437, 'status': 0}
         """
-        if self.checkDataError(data):
-            return
-        rawData = data['data']
-        name = rawData['contract_name'][:3]
-        contract_type = rawData['contract_type']
-        symbol = str.lower(name) + '_' + contract_type
-        
-        exid = str(rawData['orderid'])
+        exid = str(rawData['order_id'])
         if exid in self.localNoDict.keys():
             self.localNo = self.localNoDict[exid]
         else:
             self.localNo +=1
             self.localNoDict[exid] = self.localNo
+            self.symbolDict[exid] = symbol
         
-
         order = VtOrderData()
         order.orderID = str(self.localNo)
 
@@ -504,23 +489,31 @@ class FuturesApi(OkexFuturesApi):
         order.symbol = symbol
         order.gatewayName = self.gatewayName
         order.vtSymbol = ':'.join([order.symbol, order.gatewayName])
-        # order.exchange = EXCHANGE_OKEX
         order.price = rawData['price']
         order.price_avg = rawData['price_avg']
         order.direction, order.offset = futureOrderTypeMap[str(rawData['type'])]
         order.totalVolume = rawData['amount']    
-        # order.user_id = rawData['user_id']
         order.gatewayName = self.gatewayName
-        order.createDate  = rawData['create_date_str']
-        self.dangerdict[exid] = [symbol,datetime.strptime(order.createDate, '%Y-%m-%d %H:%M:%S')]
-        order.deliverTime = datetime.now()
+        date,time = self.generateDateTime(rawData['create_date'])
+        order.createDate  = date + ' ' + time
+        order.deliverTime = datetime.now().strftime('%Y%m%d %H:%M:%S')
         order.status = statusMap[rawData['status']] 
-        # order.fee = rawData['fee']
         order.tradedVolume = float(rawData['deal_amount'])
         self.gateway.onOrder(copy(order))
         if order.status in [STATUS_ALLTRADED,STATUS_CANCELLED]:
             del self.localNoDict[exid]
-            del self.dangerdict[exid]
+            del self.symbolDict[exid]
+            return
+
+        if 'cta' in self.gatewayName:   # 非套利策略
+            return
+        ordertime = datetime.strptime(order.createDate,'%Y%m%d %H:%M:%S')  
+        minutenow = datetime.now()
+        if (minutenow - ordertime).seconds > 60: # 超过1分钟
+            content = u'超过60秒没有撤单 网关：%s，合约：%s，\n 价格：%s，数量：%s，\n挂单时间：%s'%(
+                self.gatewayName,symbol,order.price,order.totalVolume,order.createDate)
+            self.sendErrorMsg(content)
+            self.writeLog(content)
             
     #----------------------------------------------------------------------
     def onSubFuturesBalance(self, data):
@@ -539,8 +532,8 @@ class FuturesApi(OkexFuturesApi):
         account.gatewayName = self.gatewayName
         account.accountID = rawData['symbol']
         account.vtAccountID = ':'.join([account.gatewayName, account.accountID])
-        account.balance = float(rawData['balance'])
         account.closeProfit = float(rawData['profit_real'])
+        account.balance = float(rawData['balance']) + account.closeProfit
         account.margin = float(rawData['keep_deposit'])
         account.liq = self.liquidation
 
@@ -640,7 +633,7 @@ class FuturesApi(OkexFuturesApi):
         pos.Longfrozen = pos.Longposition - position[0]['eveningup']
         pos.Shortfrozen = pos.Shortposition - position[1]['eveningup']
         self.gateway.onPosition(pos)
-        self.arbPair[pos.vtSymbol]=[pos.Longposition,pos.Shortposition]
+        self.arbPair[pos.symbol]=[pos.Longposition,pos.Shortposition]
     #----------------------------------------------------------------------
     def init(self, apiKey, secretKey, trace, contracts,liquidation):
         """初始化接口"""
@@ -657,7 +650,7 @@ class FuturesApi(OkexFuturesApi):
     def generateDateTime(self, s):
         """生成时间"""
         dt = datetime.fromtimestamp(float(s)/1e3)
-        time = dt.strftime("%H:%M:%S.%f")
+        time = dt.strftime("%H:%M:%S")
         date = dt.strftime("%Y%m%d")
         return date, time
     #----------------------------------------------------------------------
@@ -682,57 +675,102 @@ class FuturesApi(OkexFuturesApi):
             self.gateway.onError(error)
             return True
     def minuteCheck(self):
-        minutenow = datetime.now()
-        # 超过1分钟的挂单需要撤单
-        for exid in self.dangerdict.keys():
-            danger = self.dangerdict[exid]
-            if minutenow - danger[1] > timedelta(seconds = 60):
-                symbol = danger[0][:3]
-                contract_type = danger[0][4:]
-                self.futuresCancelOrder(symbol,exid,contract_type)  # 直接去API
-                content = u'---有挂单超过60秒，Monitor发出撤单---\n--合约：%s, 挂单时间：%s'%(danger[0],danger[1])
-                self.writeLog(content)
-                self.gateway.sendErrorMsg(content)
+        
+        order = VtOrderData()
+        order.vtOrderID = self.gatewayName+'0'
+        order.orderID = '0'
+        order.symbol = u'每分钟更新'
+        order.createDate = 'minute  update'
+        order.deliverTime = datetime.now().strftime('%Y%m%d %H:%M:%S')
+        order.gatewayName = self.gatewayName
+        self.gateway.onOrder(order)      # 硬插入一行作为分隔符
 
+        for sym in self.subscribeList:
+            symbol = sym[:3]+'_usd'
+            contract_type = sym[4:]
+            data = self.future_order_info(symbol,contract_type,-1,1,1,10)  # 挂单查询
+            for rawData in data['orders']:
+                self.pushOrder(rawData,sym)
+
+        for exid in list(self.localNoDict.keys()):
+            if exid in list(self.symbolDict.keys()):
+                sym = self.symbolDict[exid]
+            else:
+                self.writeLog('no sym found in this order:(%s)'%exid)
+                continue
+
+            symbol = sym[:3]+'_usd'
+            contract_type = sym[4:]
+            data = self.future_order_info(symbol,contract_type,exid)  # 对收到的订单更新状态
+            rawData = data['orders'][0]
+            self.pushOrder(rawData,sym)
+            
+        # 查询账户信息
+        data = self.future_userinfo()
+        contracts = data['info']  
+        # 帐户信息
+        for symbol in contracts.keys():
+            fund = contracts[symbol]
+
+            if 'account_rights' in fund.keys():
+                balance= float(fund['account_rights'])
+                if balance:                   ##过滤掉没有持仓的币种
+                    account = VtAccountData()
+                    account.gatewayName = self.gatewayName
+                    account.accountID = symbol + '_usd'
+                    account.vtAccountID = ':'.join([account.gatewayName, account.accountID])
+                    account.risk_rate = fund['risk_rate']
+                    account.balance = balance
+                    account.closeProfit = float(fund['profit_real'])
+                    account.positionProfit = fund['profit_unreal']
+                    account.margin =  round(fund['keep_deposit'],3)
+                    account.liq = self.liquidation
+
+                    account.dailyPnL = account.balance / account.preBalance - 1
+                    self.writeLog(u'Account:%s, balance:%s, margin:%s'%(
+                        account.accountID,balance,account.margin))
+                    self.gateway.onAccount(account)  
+
+        for sym in self.subscribeList:
+            symbol = sym[:3]+'_usd'
+            contract_type = sym[4:]
+            self.rest_futures_position(symbol,contract_type)
         # 判断是否头寸暴露
+        if 'cta' in self.gatewayName:
+            return
         arb = []
         for sym in self.arbPair.keys():
             pos = self.arbPair[sym]
             arb.append([pos,sym])
         
-        if len(arb)<2:
-            return
+        if len(arb)==2:
+            sym1 = arb[0][1]
+            sym2 = arb[1][1]
+            if arb[0][0][0] or arb[1][0][1]:
+                if arb[0][0][0]==arb[1][0][1]:
+                    content = u'---%s 双边持仓正常---%s %s：%s %s'%(self.gatewayName,sym1,arb[0][0][0],arb[1][0][1],sym2)
+                    self.writeLog(content)
+                else:
+                    content = u'---%s 头寸暴露---\n--%s %s：%s %s'%(self.gatewayName,sym1,arb[0][0][0],arb[1][0][1],sym2)
+                    self.writeLog(content)
+                    self.gateway.sendErrorMsg(content)
+            if arb[0][0][1] or arb[1][0][0]:
+                if arb[0][0][1]==arb[1][0][0]:
+                    content = u'---%s 双边持仓正常---%s %s：%s %s'%(self.gatewayName,sym1,arb[0][0][1],arb[1][0][0],sym2)
+                    self.writeLog(content)
+                else:
+                    content = u'---%s 头寸暴露---\n--%s %s：%s %s'%(self.gatewayName,sym1,arb[0][0][1],arb[1][0][0],sym2)
+                    self.writeLog(content)
+                    self.gateway.sendErrorMsg(content)
 
-        sym1 = arb[0][1].split(':')[0]
-        sym2 = arb[1][1].split(':')[0]
-        if arb[0][0][0] or arb[1][0][1]:
-            if arb[0][0][0]==arb[1][0][1]:
-                content = u'---%s 双边持仓正常---%s %s：%s %s'%(self.gatewayName,sym1,arb[0][0][0],arb[1][0][1],sym2)
+            if (arb[0][0][1] + arb[1][0][0] + arb[0][0][0] + arb[1][0][1]) == 0:
+                content = u'---%s 账户没有持仓---合约对%s,%s'%(self.gatewayName,sym1,sym2)
                 self.writeLog(content)
-            else:
-                content = u'---%s 头寸暴露---\n--%s %s：%s %s'%(self.gatewayName,sym1,arb[0][0][0],arb[1][0][1],sym2)
-                self.writeLog(content)
-                self.gateway.sendErrorMsg(content)
-        if arb[0][0][1] or arb[1][0][0]:
-            if arb[0][0][1]==arb[1][0][0]:
-                content = u'---%s 双边持仓正常---%s %s：%s %s'%(self.gatewayName,sym1,arb[0][0][1],arb[1][0][0],sym2)
-                self.writeLog(content)
-            else:
-                content = u'---%s 头寸暴露---\n--%s %s：%s %s'%(self.gatewayName,sym1,arb[0][0][1],arb[1][0][0],sym2)
-                self.writeLog(content)
-                self.gateway.sendErrorMsg(content)
-
-        if (arb[0][0][1] + arb[1][0][0] + arb[0][0][0] + arb[1][0][1]) == 0:
-            content = u'---%s 账户没有持仓---合约对%s,%s'%(self.gatewayName,sym1,sym2)
-            self.writeLog(content)
-        
+            
     #----------------------------------------------------------------------
     def subscribe(self, symbol,contractType):
         """订阅行情"""
         self.subsribeFuturesTicker(symbol,contractType)
-        # self.subscribeFuturesKline(symbol,"this_week","30min")  # 订阅推送K线数据
-        # self.subscribeFuturesDepth(symbol,contractType)
-        # self.subscribeFuturesTrades(symbol,contractType)
         self.subscribeFuturesUserInfo()
     #------------------------------------------------------
     #Restful 配置
@@ -774,7 +812,7 @@ class FuturesApi(OkexFuturesApi):
             pos.Longfrozen = pos.Longposition - position['buy_available']
             pos.Shortfrozen = pos.Shortposition - position['sell_available']
             self.gateway.onPosition(pos)
-            self.arbPair[pos.vtSymbol] = [pos.Longposition,pos.Shortposition]
+            self.arbPair[pos.symbol] = [pos.Longposition,pos.Shortposition]
 
         else:
             # {'result': False, 'error_code': 20022, 'interface': '/api/v1/future_position_4fix'}

@@ -1,7 +1,6 @@
 # encoding: UTF-8
 
 import time
-from threading import Timer
 from vnpy.event import *
 
 from vnpy.trader.vtEvent import *
@@ -151,12 +150,6 @@ class VtGateway(object):
     def close(self):
         """关闭"""
         pass
-
-    def sendHeartBeat(self,my_context):
-        self.temp +=1
-        if self.temp ==3:
-            self.mail(my_context,'MONITOR 每小时快照')
-            self.temp=0
         
     def sendErrorMsg(self,my_context):
         self.mail(my_context,'MONITOR 警报')
