@@ -604,8 +604,7 @@ class OrderMonitor(BasicMonitor):
         self.setSaveData(True)
         self.setSorting(True)
         self.setResizeMode(QtWidgets.QHeaderView.Stretch)
-        self.setSortIndicator(0,Qt.AscendingOrder)
-        self.horizontalHeader().setSortIndicator(4,)
+        # self.horizontalHeader().setSortIndicator(4,QtWidgets.AscendingOrder)
         
         self.initTable()
         self.registerEvent()
@@ -683,9 +682,7 @@ class AccountMonitor(BasicMonitor):
         d['dailyPnL'] = {'chinese':vtText.DAILYPNL, 'cellType':PnlCell}
         
         d['margin'] = {'chinese':vtText.MARGIN, 'cellType':BasicCell}
-        #d['risk_rate'] = {'chinese':vtText.RISK_RATE, 'cellType':NumCell}
-        d['closeProfit'] = {'chinese':vtText.CLOSE_PROFIT, 'cellType':PnlCell}
-        d['positionProfit'] = {'chinese':vtText.POSITION_PROFIT, 'cellType':PnlCell}
+        d['lastTrade'] = {'chinese':vtText.LASTTRADE, 'cellType':BasicCell}
 
         self.setHeaderDict(d)
         self.setDataKey('vtAccountID')

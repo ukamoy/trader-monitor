@@ -42,44 +42,34 @@ statusMap[4] = STATUS_CANCELINPROGRESS
 statusMap[5] = STATUS_CANCELLING
 
 # Restful 下单返回错误映射
-orderErrorMap = {}
-orderErrorMap['20001'] = u"用户不存在"
-orderErrorMap['20002'] = u"用户被冻结"
-orderErrorMap['20003'] = u"用户被爆仓冻结"
-orderErrorMap['20004'] = u"合约账户被冻结"
-orderErrorMap['20005'] = u"用户合约账户不存在"
-orderErrorMap['20006'] = u"必填参数为空"
-orderErrorMap['20007'] = u"参数错误"
-orderErrorMap['20008'] = u"合约账户余额为空"
-orderErrorMap['20009'] = u"虚拟合约状态错误"
-orderErrorMap['20010'] = u"合约风险率信息不存在"
-orderErrorMap['20011'] = u"10倍/20倍杠杆开BTC前保证金率低于90%/80%，10倍/20倍杠杆开LTC前保证金率低于80%/60%"
-orderErrorMap['20012'] = u"10倍/20倍杠杆开BTC后保证金率低于90%/80%，10倍/20倍杠杆开LTC后保证金率低于80%/60%"
-orderErrorMap['20013'] = u"暂无对手价"
-orderErrorMap['20014'] = u"系统错误"
-orderErrorMap['20015'] = u"订单信息不存在"
-orderErrorMap['20016'] = u"平仓数量是否大于同方向可用持仓数量"
-orderErrorMap['20017'] = u"非本人操作"
-orderErrorMap['20018'] = u"下单价格高于前一分钟的103%或低于97%"
-orderErrorMap['20019'] = u"该IP限制不能请求该资源"
-orderErrorMap['20020'] = u"密钥不存在"
-orderErrorMap['20021'] = u"指数信息不存在"
-orderErrorMap['20022'] = u"接口调用错误（全仓模式调用全仓接口，逐仓模式调用逐仓接口）"
-orderErrorMap['20023'] = u"逐仓用户"
-orderErrorMap['20024'] = u"sign签名不匹配"
-orderErrorMap['20025'] = u"杠杆比率错误"
-orderErrorMap['20026'] = u"API鉴权错误"
-orderErrorMap['20027'] = u"无交易记录"
-orderErrorMap['20028'] = u"合约不存在"
-orderErrorMap['20029'] = u"转出金额大于可转金额"
-orderErrorMap['20030'] = u"账户存在借款"
-orderErrorMap['20038'] = u"根据相关法律，您所在的国家或地区不能使用该功能。"
-orderErrorMap['20049'] = u"用户请求接口过于频繁"
-orderErrorMap['20061'] = u"合约相同方向只支持一个杠杆，若有10倍多单，就不能再下20倍多单"
-orderErrorMap['21020'] = u"合约交割中，无法下单"
-orderErrorMap['21021'] = u"合约清算中，无法下单"
-orderErrorMap['HTTP错误码403'] = u"用户请求过快，IP被屏蔽"
-orderErrorMap['Ping不通'] = u"用户请求过快，IP被屏蔽"
+boringMap = [
+    "好快！这就一分钟了","每分钟会怼账户状态",
+    "每分钟我来更新一下",
+    "底下不能有未成交",
+    "未成交 ？ 不存在的",
+    "让我们期待 2019",
+    "更新好了,你快去快回",
+    "是不是喜欢绿色了？",
+    "为田总打 Call",
+    "你干嘛盯着我看",
+    "我就说这么几句话",
+    "不一定显示全部订单",
+    "看看持仓，成交会变",
+    "呱呱 呱呱 呱呱",
+    "瞧这满屏的绿色",
+    "未成交>60秒有邮件",
+    "亏超3%我会通知你",
+    "定时看OKEX客户端",
+    "先停策略再处理异常",
+    "疑似单边要看待成交",
+    "这个版本没有BUG",
+    "每分钟更新 ↘ ↘ ↘",
+    "有问题 找宗盛 ^_^",
+    "发单间隔太久要看下",
+    "你比上一分钟还帅",
+    "EOS 年底 100 块"
+]
+
 
 ########################################################################
 class OkexGateway(VtGateway):
@@ -151,22 +141,14 @@ class OkexGateway(VtGateway):
     #----------------------------------------------------------------------
     def qryPosition(self):
         """查询持仓"""
-        print(55555)
-
         # self.futuresApi.futuresUserInfo()
         pass
-    def sysCheck(self):
-        self.flag+=1
-        print('---------timer----------')
-        if self.flag == 5:
-            print('111111111min')
-            # self.futuresApi.minuteCheck()
-            self.flag = 0
+
     #------------------------------------------------
     def qryAllOrders(self, vtSymbol, order_id, status= None):
         pass
 
-    def batchCancelOrder(cancelOrderReqList):
+    def batchCancelOrder(self,cancelOrderReqList):
         pass
 
     def loadHistoryBar(self, vtSymbol, type_, size= None, since = None):
@@ -183,7 +165,7 @@ class OkexGateway(VtGateway):
             self.futuresApi.rest_futures_position(symbol,contractType)
         else:
             symbol = symbol
-            self.spotApi.rest_spot_posotion(symbol)
+            #self.spotApi.rest_spot_posotion(symbol)
     #----------------------------------------------------------------------
     def close(self):
         """关闭"""
@@ -194,7 +176,7 @@ class OkexGateway(VtGateway):
         """初始化连续查询"""
         if self.qryEnabled:
             # 需要循环的查询函数列表
-            self.qryFunctionList = [self.qryPosition,self.sysCheck]
+            self.qryFunctionList = [self.qryPosition]
             
             self.qryCount = 0           # 查询触发倒计时
             self.qryTrigger = 2         # 查询触发点
@@ -263,10 +245,9 @@ class FuturesApi(OkexFuturesApi):
         self.contractidDict = {}        # 用于持仓信息中, 对应rest查询的合约和ws查询的合约，获取品种信息
         self.prebalanceDict = {}
         self.filledList =[]
-        self.tradetick = 0
+        self.preTrade = None
         self.accountdata = None
         self.liquidation = 0
-
 
         self.recordOrderId_BefVolume = {}       # 记录的之前处理的量
 
@@ -439,19 +420,24 @@ class FuturesApi(OkexFuturesApi):
                     account.positionProfit = fund['profit_unreal']
                     account.margin =  fund['keep_deposit']
                     account.liq = self.liquidation
+                    
                     check = self.loadPreBalance()
 
                     if not check:
                         account.preBalance = account.balance
+                        self.preTrade = datetime.now().strftime('%Y%m%d %X')
                     else:
                         account.preBalance = check[account.accountID]
                     account.dailyPnL = account.balance / account.preBalance - 1
+                    if account.margin:
+                        self.preTrade = datetime.now().strftime('%Y%m%d %X')
                     
+                    account.lastTrade = self.preTrade
+
                     accountinfo.append([account.accountID,account.balance,account.preBalance])
                     self.gateway.onAccount(account)    
                     flag = 1
 
-                
             elif 'balance' in fund.keys():
                 balance= float(fund['balance'])
                 if balance:                     ##过滤掉没有持仓的币种
@@ -501,8 +487,10 @@ class FuturesApi(OkexFuturesApi):
         order.tradedVolume = float(rawData['deal_amount'])
         self.gateway.onOrder(copy(order))
         if order.status in [STATUS_ALLTRADED,STATUS_CANCELLED]:
-            del self.localNoDict[exid]
-            del self.symbolDict[exid]
+            if exid in self.localNoDict.keys():
+                del self.localNoDict[exid]
+            if exid in self.symbolDict.keys():
+                del self.symbolDict[exid]
             return
 
         if 'cta' in self.gatewayName:   # 非套利策略
@@ -510,9 +498,9 @@ class FuturesApi(OkexFuturesApi):
         ordertime = datetime.strptime(order.createDate,'%Y%m%d %H:%M:%S')  
         minutenow = datetime.now()
         if (minutenow - ordertime).seconds > 60: # 超过1分钟
-            content = u'超过60秒没有撤单 网关：%s，合约：%s，\n 价格：%s，数量：%s，\n挂单时间：%s'%(
+            content = u'超过60秒没有撤单 \n 网关：%s，合约：%s，\n 价格：%s，数量：%s，\n挂单时间：%s'%(
                 self.gatewayName,symbol,order.price,order.totalVolume,order.createDate)
-            self.sendErrorMsg(content)
+            self.gateway.sendErrorMsg(content)
             self.writeLog(content)
             
     #----------------------------------------------------------------------
@@ -549,6 +537,10 @@ class FuturesApi(OkexFuturesApi):
             account.dailyPnL = account.balance / account.preBalance - 1
 
         self.accountdata = account
+
+        if account.margin:
+            self.preTrade = datetime.now().strftime('%Y%m%d %X')
+        account.lastTrade = self.preTrade
         self.gateway.onAccount(account)  
         # self.writeLog(u'期货账户信息更新成功')
     def saveAccountinfo(self,data):    
@@ -605,8 +597,6 @@ class FuturesApi(OkexFuturesApi):
         """
         if self.checkDataError(data):
             return
-        # if not self.contract_id:   #判断REST的持仓信息是否已经推送
-        #     return
             
         symbol = data['data']['symbol']
         position = data['data']['positions']
@@ -633,7 +623,12 @@ class FuturesApi(OkexFuturesApi):
         pos.Longfrozen = pos.Longposition - position[0]['eveningup']
         pos.Shortfrozen = pos.Shortposition - position[1]['eveningup']
         self.gateway.onPosition(pos)
+        long1,short2 = self.arbPair[pos.symbol][0],self.arbPair[pos.symbol][1]
         self.arbPair[pos.symbol]=[pos.Longposition,pos.Shortposition]
+        if long1!=pos.Longposition or short2 != pos.Shortposition:
+            self.gateway.sendHeartBeat(u'账户%s，合约：%s，当前仓位：%s'%(
+                self.gatewayName,symbol,self.arbPair[pos.symbol]))
+
     #----------------------------------------------------------------------
     def init(self, apiKey, secretKey, trace, contracts,liquidation):
         """初始化接口"""
@@ -675,22 +670,6 @@ class FuturesApi(OkexFuturesApi):
             self.gateway.onError(error)
             return True
     def minuteCheck(self):
-        
-        order = VtOrderData()
-        order.vtOrderID = self.gatewayName+'0'
-        order.orderID = '0'
-        order.symbol = u'每分钟更新'
-        order.createDate = 'minute  update'
-        order.deliverTime = datetime.now().strftime('%Y%m%d %H:%M:%S')
-        order.gatewayName = self.gatewayName
-        self.gateway.onOrder(order)      # 硬插入一行作为分隔符
-
-        for sym in self.subscribeList:
-            symbol = sym[:3]+'_usd'
-            contract_type = sym[4:]
-            data = self.future_order_info(symbol,contract_type,-1,1,1,10)  # 挂单查询
-            for rawData in data['orders']:
-                self.pushOrder(rawData,sym)
 
         for exid in list(self.localNoDict.keys()):
             if exid in list(self.symbolDict.keys()):
@@ -704,6 +683,30 @@ class FuturesApi(OkexFuturesApi):
             data = self.future_order_info(symbol,contract_type,exid)  # 对收到的订单更新状态
             rawData = data['orders'][0]
             self.pushOrder(rawData,sym)
+
+
+        num = random.randint(0,25)
+        order = VtOrderData()
+        order.vtOrderID = self.gatewayName+'0'
+        order.orderID = '0'
+        order.symbol = boringMap[num]
+        num = random.randint(0,25)
+        order.createDate = boringMap[num]
+        order.deliverTime = datetime.now().strftime('%Y%m%d %H:%M:%S')
+        order.gatewayName = self.gatewayName
+        self.gateway.onOrder(order)      # 硬插入一行作为分隔符
+
+        for sym in self.subscribeList:
+            symbol = sym[:3]+'_usd'
+            contract_type = sym[4:]
+            data = self.future_order_info(symbol,contract_type,-1,1,1,10)  # 挂单查询
+            if 'orders' in data.keys():
+                for rawData in data['orders']:
+                    self.pushOrder(rawData,sym)
+            else:
+                self.writeLog('somethingwrong %s'%data)
+
+
             
         # 查询账户信息
         data = self.future_userinfo()
@@ -725,11 +728,29 @@ class FuturesApi(OkexFuturesApi):
                     account.positionProfit = fund['profit_unreal']
                     account.margin =  round(fund['keep_deposit'],3)
                     account.liq = self.liquidation
+                    check = self.loadPreBalance()
 
+                    if not check:
+                        account.preBalance = account.balance
+                        self.preTrade = datetime.now().strftime('%Y%m%d %X')
+                    else:
+                        account.preBalance = check[account.accountID]
+                    if account.margin:
+                        self.preTrade = datetime.now().strftime('%Y%m%d %X')
+                    account.lastTrade = self.preTrade
                     account.dailyPnL = account.balance / account.preBalance - 1
                     self.writeLog(u'Account:%s, balance:%s, margin:%s'%(
                         account.accountID,balance,account.margin))
-                    self.gateway.onAccount(account)  
+                    self.gateway.onAccount(account)
+                    if account.dailyPnL<(-0.03):
+                        self.gateway.sendErrorMsg(
+                            u'日内亏损超过 0.03,需要干预使用当前账户的策略。\n账户：%s,净值：%s,昨净值：%s'%(
+                                self.gatewayName,account.balance,account.preBalance))
+                    if account.balance<account.liq:
+                        self.gateway.sendErrorMsg(
+                            u'强平线被触发，需要干预使用当前账户的策略。\n账户:%s，净值：%s'%(
+                                self.gatewayName,account.balance))
+                        
 
         for sym in self.subscribeList:
             symbol = sym[:3]+'_usd'

@@ -19,5 +19,6 @@
 	"mailAccount":"",
 	"mailPass":"",
 	"mailServer":"",
-	"mailPort":""	
+	"mailPort":"",
+	"receiver":""	
 }

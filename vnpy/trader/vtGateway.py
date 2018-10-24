@@ -1,12 +1,14 @@
 # encoding: UTF-8
 
 import time
+from threading import Timer
 from vnpy.event import *
 
 from vnpy.trader.vtEvent import *
 from vnpy.trader.vtConstant import *
 from vnpy.trader.vtObject import *
-
+from vnpy.trader.vtGlobal import globalSetting
+from datetime import datetime
 import smtplib
 from email.mime.text import MIMEText
 from email.utils import formataddr
@@ -150,16 +152,20 @@ class VtGateway(object):
     def close(self):
         """关闭"""
         pass
+
+    def sendHeartBeat(self,my_context):
+        self.mail(my_context,'MONITOR Position')
         
     def sendErrorMsg(self,my_context):
         self.mail(my_context,'MONITOR 警报')
 
     def mail(self,my_context,title):
-        mailaccount, mailpass = '', ''
-        mailserver, mailport = '', 465
-        to_receiver = ''
+        mailaccount, mailpass = globalSetting['mailAccount'],globalSetting['mailPass']
+        mailserver, mailport = globalSetting['mailServer'],globalSetting['mailPort']
+        to_receiver = globalSetting['receiver']
         ret=True
         try:
+            my_context= my_context.replace('\n','<br>')
             my_context = my_context +"<br><br> from monitor <br><br> Have a good day <br>"+ datetime.now().strftime("%Y%m%d %H:%M:%S")
             msg=MIMEText(my_context,'html','utf-8')
             msg['From']=formataddr(['VNPY_CryptoCurrency',mailaccount])
@@ -170,8 +176,12 @@ class VtGateway(object):
             server.login(mailaccount, mailpass)
             server.sendmail(mailaccount,[to_receiver],msg.as_string())
             server.quit()
-            print(" Send email successfully ...")
+            print(u" Send email successfully ...")
         except Exception:
             ret=False
-            print(" Send email failed ...")
+            print(u" Send email failed ...")
         return ret
+
+    
+    
+    

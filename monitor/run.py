@@ -15,7 +15,7 @@ from vnpy.trader.uiQt import createQApp
 from vnpy.trader.gateway import okexGateway
 
 # 加载上层应用
-from vnpy.trader.app import ctaStrategy
+# from vnpy.trader.app import ctaStrategy
 
 # 当前目录组件
 from uiCryptoWindow import MainWindow
@@ -34,7 +34,7 @@ def main():
     me.addGateway(okexGateway)
 
     # 添加上层应用
-    me.addApp(ctaStrategy)
+    # me.addApp(ctaStrategy)
     
     # 创建主窗口
     mw = MainWindow(me, ee)
