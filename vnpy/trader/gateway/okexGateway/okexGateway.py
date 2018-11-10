@@ -248,6 +248,7 @@ class FuturesApi(OkexFuturesApi):
         self.preTrade = None
         self.accountdata = None
         self.liquidation = 0
+        self.recordPrevConnection = None
 
         self.recordOrderId_BefVolume = {}       # 记录的之前处理的量
 
@@ -288,6 +289,12 @@ class FuturesApi(OkexFuturesApi):
         self.login()
         self.writeLog(u'期货服务器连接成功')
         
+        temp = self.recordPrevConnection
+        self.recordPrevConnection = datetime.now()
+        if temp:
+            if (self.recordPrevConnection-temp).seconds < 60:
+                self.gateway.sendErrorMsg('%s, reconnect within 1 min'%self.gatewayName)
+                sleep(10)
         # 推送合约数据
         for symbol in self.contracts:
             contract = VtContractData()

@@ -2,4 +2,3 @@ pymongo
 websocket-client==0.48.0
 qdarkstyle
 SortedContainers
-snappy

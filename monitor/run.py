@@ -18,7 +18,7 @@ from vnpy.trader.gateway import okexGateway
 # from vnpy.trader.app import ctaStrategy
 
 # 当前目录组件
-from uiCryptoWindow import MainWindow
+from vnpy.trader.uiCryptoWindow import MainWindow
 
 #----------------------------------------------------------------------
 def main():

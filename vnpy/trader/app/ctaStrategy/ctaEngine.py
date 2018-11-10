@@ -379,7 +379,7 @@ class CtaEngine(object):
                     s.remove(vtOrderID)
 
             self.callStrategyFunc(strategy, strategy.onOrder, order)
-            self.saveOrderDetail(strategy,order)
+            # self.saveOrderDetail(strategy,order)
 
     #----------------------------------------------------------------------
     def processTradeEvent(self, event):
@@ -435,7 +435,7 @@ class CtaEngine(object):
                         strategy.bondDict[str(posName2)]=pos.frozen
 
                     # 保存策略持仓到数据库
-                    self.saveSyncData(strategy)  
+                    # self.saveSyncData(strategy)  
 
     #------------------------------------------------------
     def processAccountEvent(self,event):
@@ -449,13 +449,13 @@ class CtaEngine(object):
                     strategy.accountDict[str(accountName)] = account.position
                 if 'frozenDict' in strategy.syncList:
                     strategy.bondDict[str(accountName)] = account.frozen
-        if not self.initAccount:
-            self.loadAccountData(account)
-            self.initAccount = 1
-        else:
-            if datetime.now().minute != self.minute_temp:
-                self.saveAccountData(account)
-                self.minute_temp = datetime.now().minute
+        # if not self.initAccount:
+        #     self.loadAccountData(account)
+        #     self.initAccount = 1
+        # else:
+        #     if datetime.now().minute != self.minute_temp:
+        #         self.saveAccountData(account)
+        #         self.minute_temp = datetime.now().minute
 
 
     #--------------------------------------------------
@@ -468,43 +468,43 @@ class CtaEngine(object):
         self.eventEngine.register(EVENT_ACCOUNT, self.processAccountEvent)
 
     #----------------------------------------------------------------------
-    def insertData(self, dbName, collectionName, data):
-        """插入数据到数据库（这里的data可以是VtTickData或者VtBarData）"""
-        for collectionName_ in collectionName:
-            self.mainEngine.dbInsert(dbName, collectionName_, data.__dict__)
+    # def insertData(self, dbName, collectionName, data):
+    #     """插入数据到数据库（这里的data可以是VtTickData或者VtBarData）"""
+    #     for collectionName_ in collectionName:
+    #         self.mainEngine.dbInsert(dbName, collectionName_, data.__dict__)
 
-    #----------------------------------------------------------------------
-    def loadBar(self, dbName, collectionName, hours):
-        """从数据库中读取Bar数据，startDate是datetime对象"""
-        startDate = self.today - timedelta(hour = hours)
-        for collectionName_ in collectionName:
-            d = {'datetime':{'$gte':startDate}}
+    # #----------------------------------------------------------------------
+    # def loadBar(self, dbName, collectionName, hours):
+    #     """从数据库中读取Bar数据，startDate是datetime对象"""
+    #     startDate = self.today - timedelta(hour = hours)
+    #     for collectionName_ in collectionName:
+    #         d = {'datetime':{'$gte':startDate}}
             
-            barData = self.mainEngine.dbQuery(dbName, collectionName_, d, 'datetime')
+    #         barData = self.mainEngine.dbQuery(dbName, collectionName_, d, 'datetime')
 
-            l = []
-            for d in barData:
-                bar = VtBarData()
-                bar.__dict__ = d
-                bar.vtSymbol = collectionName_
-                l.append(bar)
-            return l
+    #         l = []
+    #         for d in barData:
+    #             bar = VtBarData()
+    #             bar.__dict__ = d
+    #             bar.vtSymbol = collectionName_
+    #             l.append(bar)
+    #         return l
 
     #----------------------------------------------------------------------
-    def loadTick(self, dbName, collectionName, hours):
-        """从数据库中读取Tick数据，startDate是datetime对象"""
-        startDate = self.today - timedelta(hour = hours)
-        for collectionName_ in collectionName:
+    # def loadTick(self, dbName, collectionName, hours):
+    #     """从数据库中读取Tick数据，startDate是datetime对象"""
+    #     startDate = self.today - timedelta(hour = hours)
+    #     for collectionName_ in collectionName:
 
-            d = {'datetime':{'$gte':startDate}}
-            tickData = self.mainEngine.dbQuery(dbName, collectionName_, d, 'datetime')
+    #         d = {'datetime':{'$gte':startDate}}
+    #         tickData = self.mainEngine.dbQuery(dbName, collectionName_, d, 'datetime')
 
-            l = []
-            for d in tickData:
-                tick = VtTickData()
-                tick.__dict__ = d
-                l.append(tick)
-            return l
+    #         l = []
+    #         for d in tickData:
+    #             tick = VtTickData()
+    #             tick.__dict__ = d
+    #             l.append(tick)
+    #         return l
 
     #----------------------------------------------------------------------
     def writeCtaLog(self, content):
@@ -622,7 +622,7 @@ class CtaEngine(object):
 
             if strategy.trading:
                 self.writeCtaLog(u'策略%s： 准备停止工作' %name)
-                self.saveVarData(strategy)
+                # self.saveVarData(strategy)
                 strategy.trading = False
                 self.callStrategyFunc(strategy, strategy.onStop)
 
@@ -743,96 +743,96 @@ class CtaEngine(object):
             self.mail(content,strategy)
             self.writeCtaLog(content)
 
-    #----------------------------------------------------------------------------------------
-    def saveSyncData(self, strategy):    #改为posDict
-        """保存策略的持仓情况到数据库"""
+    # #----------------------------------------------------------------------------------------
+    # def saveSyncData(self, strategy):    #改为posDict
+    #     """保存策略的持仓情况到数据库"""
 
-        flt = {'name': strategy.name,
-            'posName':str(strategy.symbolList)}
-        result = []
-        d = copy(flt)
-        for key in strategy.syncList:
-            d[key] = strategy.__getattribute__(key)
-            result.append(key)
-            result.append(d[key])
+    #     flt = {'name': strategy.name,
+    #         'posName':str(strategy.symbolList)}
+    #     result = []
+    #     d = copy(flt)
+    #     for key in strategy.syncList:
+    #         d[key] = strategy.__getattribute__(key)
+    #         result.append(key)
+    #         result.append(d[key])
 
-        self.mainEngine.dbUpdate(POSITION_DB_NAME, strategy.name,
-                                    d, flt, True)
+    #     self.mainEngine.dbUpdate(POSITION_DB_NAME, strategy.name,
+    #                                 d, flt, True)
 
-        content = u'策略%s: 同步数据保存成功,当前仓位状态:%s' %(strategy.name,result)
-        self.writeCtaLog(content)
+    #     content = u'策略%s: 同步数据保存成功,当前仓位状态:%s' %(strategy.name,result)
+    #     self.writeCtaLog(content)
 
-    def saveVarData(self, strategy):
-        flt = {'name': strategy.name,
-            'posName':str(strategy.symbolList)}
-        result = []
-        d = copy(flt)
-        for key in strategy.varList:
-            d[key] = strategy.__getattribute__(key)
-            result.append(key)
-            result.append(d[key])
+    # def saveVarData(self, strategy):
+    #     flt = {'name': strategy.name,
+    #         'posName':str(strategy.symbolList)}
+    #     result = []
+    #     d = copy(flt)
+    #     for key in strategy.varList:
+    #         d[key] = strategy.__getattribute__(key)
+    #         result.append(key)
+    #         result.append(d[key])
 
-        self.mainEngine.dbUpdate(VAR_DB_NAME, strategy.name,
-                                    d, flt, True)
+    #     self.mainEngine.dbUpdate(VAR_DB_NAME, strategy.name,
+    #                                 d, flt, True)
                 
-        content = u'策略%s: 参数数据保存成功,参数为%s' %(strategy.name,result)
-        self.writeCtaLog(content)
+    #     content = u'策略%s: 参数数据保存成功,参数为%s' %(strategy.name,result)
+    #     self.writeCtaLog(content)
 
-    #----------------------------------------------------------------------
-    def loadSyncData(self, strategy):
-        """从数据库载入策略的持仓情况"""
+    # #----------------------------------------------------------------------
+    # def loadSyncData(self, strategy):
+    #     """从数据库载入策略的持仓情况"""
 
-        flt = {'name': strategy.name,
-        'posName': str(strategy.symbolList)}
-        syncData = self.mainEngine.dbQuery(POSITION_DB_NAME, strategy.name, flt)
+    #     flt = {'name': strategy.name,
+    #     'posName': str(strategy.symbolList)}
+    #     syncData = self.mainEngine.dbQuery(POSITION_DB_NAME, strategy.name, flt)
         
-        if not syncData:
-            self.writeCtaLog(u'策略%s: 当前没有持仓信息'%strategy.name)
-            return
+    #     if not syncData:
+    #         self.writeCtaLog(u'策略%s: 当前没有持仓信息'%strategy.name)
+    #         return
         
-        d = syncData[0]
-        for key in strategy.syncList:
-            if key in d:
-                strategy.__setattr__(key, d[key])
+    #     d = syncData[0]
+    #     for key in strategy.syncList:
+    #         if key in d:
+    #             strategy.__setattr__(key, d[key])
 
-    def loadVarData(self, strategy):
-        """从数据库载入策略的持仓情况"""
+    # def loadVarData(self, strategy):
+    #     """从数据库载入策略的持仓情况"""
 
-        flt = {'name': strategy.name,
-        'posName': str(strategy.symbolList)}
-        varData = self.mainEngine.dbQuery(VAR_DB_NAME, strategy.name, flt)
+    #     flt = {'name': strategy.name,
+    #     'posName': str(strategy.symbolList)}
+    #     varData = self.mainEngine.dbQuery(VAR_DB_NAME, strategy.name, flt)
         
-        if not varData:
-            self.writeCtaLog(u'策略%s: 当前没有保存的变量信息'%strategy.name)
-            return
+    #     if not varData:
+    #         self.writeCtaLog(u'策略%s: 当前没有保存的变量信息'%strategy.name)
+    #         return
         
-        d = varData[0]
-        for key in strategy.varList:
-            if key in d:
-                strategy.__setattr__(key, d[key])
+    #     d = varData[0]
+    #     for key in strategy.varList:
+    #         if key in d:
+    #             strategy.__setattr__(key, d[key])
 
-    def saveOrderDetail(self, strategy, order):
-        """
-        将订单信息存入数据库
-        """
-        flt = {'name': strategy.name,
-            'vtOrderID':order.vtOrderID,
-            'symbol':order.vtSymbol,
-            'exchageID': order.exchangeOrderID,
-            'direction':order.direction,
-            'offset':order.offset,
-            'price': order.price,
-            'price_avg': order.price_avg,
-            'tradedVolume':order.tradedVolume,
-            'totalVolume':order.totalVolume,
-            'status':order.status,
-            'createTime':order.orderTime,
-            'orderby':order.byStrategy
-            }
+    # def saveOrderDetail(self, strategy, order):
+    #     """
+    #     将订单信息存入数据库
+    #     """
+    #     flt = {'name': strategy.name,
+    #         'vtOrderID':order.vtOrderID,
+    #         'symbol':order.vtSymbol,
+    #         'exchageID': order.exchangeOrderID,
+    #         'direction':order.direction,
+    #         'offset':order.offset,
+    #         'price': order.price,
+    #         'price_avg': order.price_avg,
+    #         'tradedVolume':order.tradedVolume,
+    #         'totalVolume':order.totalVolume,
+    #         'status':order.status,
+    #         'createTime':order.orderTime,
+    #         'orderby':order.byStrategy
+    #         }
 
-        self.mainEngine.dbInsert(ORDER_DB_NAME, strategy.name, flt)
-        content = u'策略%s: 保存%s订单数据成功，本地订单号%s' %(strategy.name, order.vtSymbol, order.vtOrderID)
-        self.writeCtaLog(content)
+    #     self.mainEngine.dbInsert(ORDER_DB_NAME, strategy.name, flt)
+    #     content = u'策略%s: 保存%s订单数据成功，本地订单号%s' %(strategy.name, order.vtSymbol, order.vtOrderID)
+    #     self.writeCtaLog(content)
         
 
     #----------------------------------------------------------------------    
@@ -945,8 +945,8 @@ class CtaEngine(object):
                 strategy.trading = True
 
                 self.callStrategyFunc(strategy, strategy.onRestore)
-                self.loadVarData(strategy)            # 初始化完成后加载同步数据                
-                self.loadSyncData(strategy)
+                # self.loadVarData(strategy)            # 初始化完成后加载同步数据                
+                # self.loadSyncData(strategy)
                 self.writeCtaLog(u'策略%s： 恢复策略状态成功' %name)
 
             else:
@@ -1033,49 +1033,49 @@ class CtaEngine(object):
         return STRATEGY_GET_CLASS
 
     
-    def saveAccountData(self,account):
-        flt = {'name': account.gatewayName,
-            'AccountName':account.accountID,
-            'date': datetime.today().strftime('%Y%m%d')
-            }
-        d = copy(flt)
-        d['balance'] = account.balance
-        d['preBalance'] = account.preBalance,
-        d['dailyPnL'] = account.dailyPnL
-        d['profit_real'] = account.closeProfit,
-        d['margin'] = account.margin
+    # def saveAccountData(self,account):
+    #     flt = {'name': account.gatewayName,
+    #         'AccountName':account.accountID,
+    #         'date': datetime.today().strftime('%Y%m%d')
+    #         }
+    #     d = copy(flt)
+    #     d['balance'] = account.balance
+    #     d['preBalance'] = account.preBalance,
+    #     d['dailyPnL'] = account.dailyPnL
+    #     d['profit_real'] = account.closeProfit,
+    #     d['margin'] = account.margin
 
-        self.mainEngine.dbUpdate('vnpy_account_monitor', account.gatewayName,
-                                    d, flt, True)
-        self.writeCtaLog(u'gateway %s: 账户信息保存成功,昨日余额%s' %(account.gatewayName,account.preBalance))
+    #     self.mainEngine.dbUpdate('vnpy_account_monitor', account.gatewayName,
+    #                                 d, flt, True)
+    #     self.writeCtaLog(u'gateway %s: 账户信息保存成功,昨日余额%s' %(account.gatewayName,account.preBalance))
 
-    def loadAccountData(self, account):
-        flt = {'name': account.gatewayName,
-            'AccountName':account.accountID,
-            'date': datetime.today().strftime('%Y%m%d')
-            }
-        AccountData = self.mainEngine.dbQuery('vnpy_account_monitor', account.gatewayName,flt)
-        if not AccountData:
-            self.writeCtaLog(u'gateway %s: 当前没有保存的账户信息，尝试获取前一日的账户'%account.gatewayName)
-            flt = {'name': account.gatewayName,
-            'AccountName':account.accountID,
-            'date': (datetime.today()-timedelta(days=1)).date().strftime('%Y%m%d')
-            }
-            AccountData = self.mainEngine.dbQuery('vnpy_account_monitor', account.gatewayName,flt)
-            if not AccountData:
-                self.writeCtaLog(u'gateway %s: 前一日也没有保存账户信息'%account.gatewayName)
-                return
+    # def loadAccountData(self, account):
+    #     flt = {'name': account.gatewayName,
+    #         'AccountName':account.accountID,
+    #         'date': datetime.today().strftime('%Y%m%d')
+    #         }
+    #     AccountData = self.mainEngine.dbQuery('vnpy_account_monitor', account.gatewayName,flt)
+    #     if not AccountData:
+    #         self.writeCtaLog(u'gateway %s: 当前没有保存的账户信息，尝试获取前一日的账户'%account.gatewayName)
+    #         flt = {'name': account.gatewayName,
+    #         'AccountName':account.accountID,
+    #         'date': (datetime.today()-timedelta(days=1)).date().strftime('%Y%m%d')
+    #         }
+    #         AccountData = self.mainEngine.dbQuery('vnpy_account_monitor', account.gatewayName,flt)
+    #         if not AccountData:
+    #             self.writeCtaLog(u'gateway %s: 前一日也没有保存账户信息'%account.gatewayName)
+    #             return
         
-        d = AccountData[0]
-        account = VtAccountData()
-        account.gatewayName = account.gatewayName
-        account.accountID = d['AccountName']
-        account.vtAccountID = ':'.join([account.gatewayName, account.accountID])
-        account.balance = d['balance']
-        account.preBalance = d['preBalance']
-        account.dailyPnL = d['dailyPnL']
-        account.closeProfit = d['profit_real']
-        account.margin = d['margin']
-        self.accountdata = account
-        self.mainEngine.onAccount(account)  
-        self.writeCtaLog(u'从数据库加载期货账户信息成功')
+    #     d = AccountData[0]
+    #     account = VtAccountData()
+    #     account.gatewayName = account.gatewayName
+    #     account.accountID = d['AccountName']
+    #     account.vtAccountID = ':'.join([account.gatewayName, account.accountID])
+    #     account.balance = d['balance']
+    #     account.preBalance = d['preBalance']
+    #     account.dailyPnL = d['dailyPnL']
+    #     account.closeProfit = d['profit_real']
+    #     account.margin = d['margin']
+    #     self.accountdata = account
+    #     self.gateway.onAccount(account)  
+    #     self.writeCtaLog(u'从数据库加载期货账户信息成功')
