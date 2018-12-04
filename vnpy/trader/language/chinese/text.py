@@ -64,6 +64,7 @@ CLOSE_PROFIT = u'已实现收益'
 RISK_RATE = u'保证金率'
 DAILYPNL = u'日内盈亏'
 LIQUIDATION = u'平仓线'
+LASTTRADE = u'最新成交时间'
 
 TRADING = u'交易'
 PRICE_TYPE = u'价格类型'
